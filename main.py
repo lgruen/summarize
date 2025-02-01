@@ -178,6 +178,41 @@ LIST_TEMPLATE = """
 </html>
 """
 
+SUMMARY_PROMPT = """
+<content>{content}</content>
+
+Please transform this content into an in-depth technical narrative that combines technical depth with the personality and insights from the original conversation. Write for a knowledgeable audience that wants both rich technical detail and the human story behind the innovations.
+
+When describing technical innovations, combine thorough technical explanation with the speaker's perspective on why these choices matter. Maintain the original voice and personality while diving deep into the most compelling technical aspects. Begin directly with the content.
+
+Please think through this summary task step by step in your internal reasoning, then provide the final summary in a structured format.
+
+Your response must be wrapped in summary tags like this:
+<summary>
+[Your technical summary here with these characteristics:]
+Deliver:
+- Detailed explanations of novel technical approaches and why they matter
+- The speaker's insights and reasoning behind technical choices
+- Specific examples and implementation details
+- Real-world context and practical implications
+
+Structure requirements:
+- 10-15 minute reading time
+- Clear Markdown formatting
+- Flowing narrative with minimal bullet points
+- Natural blend of technical depth and personal insights
+
+Writing style:
+- Detailed technical explanations that reveal underlying complexity
+- Preserve interesting quotes and personal observations
+- Explain what makes techniques "novel" or interesting
+- Let the speaker's excitement and expertise shine through
+- Balance technical depth with clear, engaging exposition
+- Connected ideas rather than isolated points
+</summary>
+"""
+
+
 app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
@@ -276,7 +311,7 @@ def get_recent_summaries(max_entries: int = 1000) -> List[Tuple[str, str]]:
 
     try:
         for blob in list_blobs_by_page(bucket):
-            if not blob.name.endswith('.gz'):
+            if not blob.name.endswith(".gz"):
                 continue
 
             total_processed += 1
@@ -353,39 +388,25 @@ def scrape_with_jina(url: URL) -> str:
 def summarize_with_claude(content: str) -> str:
     """Summarize content using Claude"""
     client = Anthropic(api_key=config.claude_api_key)
-    prompt = """<content>{content}</content>
-    
-    Please transform this content into an engaging technical summary that's both informative and enjoyable to read. Imagine you're writing for a curious colleague who wants to quickly grasp the essence while being entertained.
-
-    Focus on:
-    - The big picture and key technical concepts
-    - Noteworthy trends and perspective shifts
-    - Standout facts, figures, and findings that truly matter
-    - Real-world implications and practical takeaways
-    
-    Feel free to:
-    - Mirror the original's tone and style when it adds flavor
-    - Use analogies or examples to make complex points stick
-    - Include bullet points sparingly, only for maximum impact
-    - Add context that makes the technical content more relatable
-    
-    Aim for:
-    - A 10-15 minute reading time
-    - Clear Markdown formatting
-    - A natural flow between topics
-    - A balance between technical accuracy and readability
-    
-    Make it feel like an insightful conversation rather than a dry report. Jump right into the content without explaining your approach.
-    """
 
     message = client.messages.create(
         model="claude-3-5-sonnet-latest",
-        max_tokens=1500,
+        max_tokens=8192,
         temperature=0.3,
-        messages=[{"role": "user", "content": prompt.format(content=content)}],
+        messages=[{"role": "user", "content": SUMMARY_PROMPT.format(content=content)}],
         timeout=config.claude_timeout,
     )
-    return message.content[0].text
+
+    response = message.content[0].text
+
+    # Try to extract summary section
+    try:
+        summary = (
+            re.search(r"<summary>(.*?)</summary>", response, re.DOTALL).group(1).strip()
+        )
+        return summary
+    except (AttributeError, IndexError):
+        return f"[Failed to extract summary tags]\n\n{response}"
 
 
 def process_request(url: URL) -> Tuple[str, str]:
@@ -456,7 +477,7 @@ def summarize(url: str) -> HTMLResponse:
         duration = time.time() - start_time
         logger.error(
             f"Request {request_id}: Timeout after {duration:.2f}s for {target_url}",
-            exc_info=True
+            exc_info=True,
         )
         return (
             render_template_string(
@@ -472,7 +493,7 @@ def summarize(url: str) -> HTMLResponse:
         logger.error(
             f"Request {request_id}: Failed after {duration:.2f}s for {target_url}. "
             f"Error: {str(e)}",
-            exc_info=True
+            exc_info=True,
         )
         return (
             render_template_string(
