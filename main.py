@@ -530,5 +530,23 @@ def recent_summaries() -> HTMLResponse:
     )
 
 
+@app.route("/raw/<path:path>")
+def raw_content(path: str) -> Response:
+    """Debug endpoint to show raw cached content"""
+    # Add leading slash to match expected format
+    target_url = get_and_validate_url("/" + path)
+    if not target_url:
+        return "Invalid URL", 400
+
+    cached = get_cached_result(target_url)
+    if not cached:
+        return "Not found in cache", 404
+
+    # Return both title and summary for completeness
+    return Response(
+        f"Title: {cached.title}\n\nSummary:\n{cached.summary}", mimetype="text/plain"
+    )
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
