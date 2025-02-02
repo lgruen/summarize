@@ -186,7 +186,7 @@ Deliver:
 - Real-world context and practical implications
 
 Structure requirements:
-- 10-15 minute reading time
+- At most half an hour of reading time
 - Clear Markdown formatting
 - Flowing narrative with minimal bullet points
 - Natural blend of technical depth and personal insights
