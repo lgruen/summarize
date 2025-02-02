@@ -212,6 +212,7 @@ Writing style:
 </summary>
 """
 
+MARKDOWN_EXTRAS = ["break-on-newline", "cuddled-lists", "markdown-in-html", "tables"]
 
 app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
@@ -413,7 +414,7 @@ def process_request(url: URL) -> Tuple[str, str]:
     """Process a single summarization request with caching"""
     cached = get_cached_result(url)
     if cached:
-        html_summary = markdown2.markdown(cached.summary)
+        html_summary = markdown2.markdown(cached.summary, extras=MARKDOWN_EXTRAS)
         return cached.title, html_summary
 
     logger.info(f"Processing new request for {url}")
@@ -436,7 +437,7 @@ def process_request(url: URL) -> Tuple[str, str]:
     store_result(url, title, markdown_summary)
 
     # Convert to HTML for display
-    html_summary = markdown2.markdown(markdown_summary)
+    html_summary = markdown2.markdown(markdown_summary, extras=MARKDOWN_EXTRAS)
 
     return title, html_summary
 
