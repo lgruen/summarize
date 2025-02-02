@@ -21,6 +21,7 @@ from flask import (
     make_response,
 )
 from anthropic import Anthropic
+from anthropic.types import TextBlock
 from urllib.parse import unquote, urlparse
 from werkzeug.middleware.proxy_fix import ProxyFix
 from functools import wraps
@@ -213,14 +214,14 @@ config = Config(
 def gzip_response(f):
     @wraps(f)
     def decorated_function(*args, **kwargs) -> Response:
-        response = f(*args, **kwargs)
-        if not isinstance(response, (str, bytes)):
-            return response
+        content: Response = f(*args, **kwargs)
+        if not isinstance(content, str):
+            return content
 
         if "gzip" not in request.headers.get("Accept-Encoding", "").lower():
-            return response
+            return Response(content)
 
-        response = make_response(gzip.compress(response.encode("utf-8")))
+        response = make_response(gzip.compress(content.encode("utf-8")))
         response.headers["Content-Encoding"] = "gzip"
         response.headers["Vary"] = "Accept-Encoding"
         response.headers["Content-Length"] = len(response.data)
@@ -297,7 +298,11 @@ def get_recent_summaries(max_entries: int = 1000) -> List[Tuple[str, str]]:
 
     try:
         for blob in list_blobs_by_page(bucket):
-            if not blob.name.endswith(".gz"):
+            if (
+                blob.name is None
+                or not blob.name.endswith(".gz")
+                or blob.time_created is None
+            ):
                 continue
 
             total_processed += 1
@@ -383,16 +388,14 @@ def summarize_with_claude(content: str) -> str:
         timeout=config.claude_timeout,
     )
 
+    assert isinstance(message.content[0], TextBlock)
     response = message.content[0].text
 
     # Try to extract summary section
-    try:
-        summary = (
-            re.search(r"<summary>(.*?)</summary>", response, re.DOTALL).group(1).strip()
-        )
-        return summary
-    except (AttributeError, IndexError):
-        return f"[Failed to extract summary tags]\n\n{response}"
+    match = re.search(r"<summary>(.*?)</summary>", response, re.DOTALL)
+    if match:
+        return match.group(1).strip()
+    return f"[Failed to extract summary tags]\n\n{response}"
 
 
 def process_request(url: URL) -> Tuple[str, str]:
@@ -522,11 +525,11 @@ def raw_content(path: str) -> Response:
     # Add leading slash to match expected format
     target_url = get_and_validate_url("/" + path)
     if not target_url:
-        return "Invalid URL", 400
+        return Response("Invalid URL", 400)
 
     cached = get_cached_result(target_url)
     if not cached:
-        return "Not found in cache", 404
+        return Response("Not found in cache", 404)
 
     # Return both title and summary for completeness
     return Response(
@@ -539,7 +542,7 @@ def delete_summary(path: str) -> Response:
     """Delete a cached summary"""
     target_url = get_and_validate_url("/" + path)
     if not target_url:
-        return "Invalid URL", 400
+        return Response("Invalid URL", 400)
 
     try:
         bucket = storage_client.bucket(config.bucket_name)
@@ -547,13 +550,13 @@ def delete_summary(path: str) -> Response:
         blob = bucket.blob(blob_name)
 
         if not blob.exists():
-            return "Not found", 404
+            return Response("Not found", 404)
 
         blob.delete()
-        return "Deleted", 200
+        return Response("Deleted", 200)
     except Exception as e:
         logger.error(f"Error deleting summary: {e}", exc_info=True)
-        return "Error deleting summary", 500
+        return Response("Error deleting summary", 500)
 
 
 if __name__ == "__main__":
