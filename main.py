@@ -19,6 +19,7 @@ from flask import (
     request,
     render_template_string,
     make_response,
+    send_from_directory,
 )
 from anthropic import Anthropic
 from anthropic.types import TextBlock
@@ -70,6 +71,7 @@ HTML_TEMPLATE = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="/favicon.png">
     <title>{{ title }}</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
@@ -111,6 +113,7 @@ LIST_TEMPLATE = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="/favicon.png">
     <title>Recent Summaries</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
@@ -557,6 +560,11 @@ def delete_summary(path: str) -> Response:
     except Exception as e:
         logger.error(f"Error deleting summary: {e}", exc_info=True)
         return Response("Error deleting summary", 500)
+
+
+@app.route("/favicon.png")
+def favicon():
+    return send_from_directory(app.root_path, "favicon.png", mimetype="image/png")
 
 
 if __name__ == "__main__":
