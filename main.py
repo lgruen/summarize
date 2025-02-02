@@ -70,59 +70,36 @@ HTML_TEMPLATE = """
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ title }}</title>
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            line-height: 1.6;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 1rem;
-            color: #333;
-        }
-        h1 { font-size: 1.5rem; margin-bottom: 1rem; }
-        .source { color: #666; margin-bottom: 1rem; }
-        .summary { 
-            background: #f5f5f5; 
-            padding: 1rem; 
-            border-radius: 8px;
-        }
-        .summary h1 { font-size: 1.4rem; }
-        .summary h2 { font-size: 1.2rem; }
-        .summary h3 { font-size: 1.1rem; }
-        .summary ul, .summary ol { 
-            padding-left: 1.5rem;
-            margin: 1rem 0;
-        }
-        .summary p { margin: 1rem 0; }
-        .summary code {
-            background: #e0e0e0;
-            padding: 0.2rem 0.4rem;
-            border-radius: 4px;
-            font-family: monospace;
-        }
-        .summary pre {
-            background: #e0e0e0;
-            padding: 1rem;
-            border-radius: 4px;
-            overflow-x: auto;
-        }
-        .error { 
-            background: #fff3f3; 
-            color: #d63031; 
-            padding: 1rem; 
-            border-radius: 8px; 
-            margin: 1rem 0; 
-        }
-    </style>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
 </head>
-<body>
-    {% if error %}
-        <div class="error">{{ error }}</div>
-    {% else %}
-        <h1>{{ title }}</h1>
-        <div class="source">Source: <a href="{{ url }}">{{ url }}</a></div>
-        <div class="summary">{{ summary|safe }}</div>
-    {% endif %}
+<body class="bg-gray-50">
+    <div class="max-w-4xl mx-auto p-4 sm:p-6 lg:p-8">
+        {% if error %}
+            <div class="bg-red-50 border-l-4 border-red-400 p-4 mb-6 rounded">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                        </svg>
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm text-red-700">{{ error }}</p>
+                    </div>
+                </div>
+            </div>
+        {% else %}
+            <h1 class="text-2xl font-bold text-gray-900 mb-4">{{ title }}</h1>
+            <div class="text-gray-600 mb-6">
+                Source: <a href="{{ url }}" class="text-indigo-600 hover:text-indigo-900 transition-colors">{{ url }}</a>
+            </div>
+            <div class="bg-white rounded-lg shadow-sm p-6">
+                <div class="prose prose-slate max-w-none prose-headings:font-semibold prose-a:text-indigo-600">
+                    {{ summary|safe }}
+                </div>
+            </div>
+        {% endif %}
+    </div>
 </body>
 </html>
 """
@@ -134,46 +111,54 @@ LIST_TEMPLATE = """
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Recent Summaries</title>
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            line-height: 1.6;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 1rem;
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+    <script>
+        async function deleteSummary(url, row) {
+            try {
+                const response = await fetch('/delete/' + url, {
+                    method: 'DELETE'
+                });
+                if (response.ok) {
+                    row.remove();
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            }
         }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        td, th {
-            padding: 8px;
-            border-bottom: 1px solid #ddd;
-            text-align: left;
-        }
-        tr:hover {
-            background-color: #f5f5f5;
-        }
-        .date {
-            white-space: nowrap;
-            color: #666;
-        }
-    </style>
+    </script>
 </head>
-<body>
-    <h1>Recent Summaries</h1>
-    <table>
-        <tr>
-            <th>Date</th>
-            <th>Article</th>
-        </tr>
-        {% for summary in summaries %}
-        <tr>
-            <td class="date">{{ summary.timestamp }}</td>
-            <td><a href="/{{ summary.url }}">{{ summary.title }}</a></td>
-        </tr>
-        {% endfor %}
-    </table>
+<body class="bg-gray-50">
+    <div class="max-w-4xl mx-auto p-4 sm:p-6 lg:p-8">
+        <h1 class="text-2xl font-bold text-gray-900 mb-6">Recent Summaries</h1>
+        <div class="bg-white rounded-lg shadow overflow-hidden">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Article</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for summary in summaries %}
+                    <tr class="hover:bg-gray-50 transition-colors" id="row-{{ loop.index }}">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ summary.timestamp }}</td>
+                        <td class="px-6 py-4 text-sm">
+                            <a href="/{{ summary.url }}" class="text-indigo-600 hover:text-indigo-900">{{ summary.title }}</a>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <button onclick="deleteSummary('{{ summary.url }}', document.getElementById('row-{{ loop.index }}'))" 
+                                    class="text-red-600 hover:text-red-900 transition-colors">
+                                Delete
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
 </body>
 </html>
 """
@@ -547,6 +532,28 @@ def raw_content(path: str) -> Response:
     return Response(
         f"Title: {cached.title}\n\nSummary:\n{cached.summary}", mimetype="text/plain"
     )
+
+
+@app.route("/delete/<path:path>", methods=["DELETE"])
+def delete_summary(path: str) -> Response:
+    """Delete a cached summary"""
+    target_url = get_and_validate_url("/" + path)
+    if not target_url:
+        return "Invalid URL", 400
+
+    try:
+        bucket = storage_client.bucket(config.bucket_name)
+        blob_name = get_blob_name(target_url)
+        blob = bucket.blob(blob_name)
+
+        if not blob.exists():
+            return "Not found", 404
+
+        blob.delete()
+        return "Deleted", 200
+    except Exception as e:
+        logger.error(f"Error deleting summary: {e}", exc_info=True)
+        return "Error deleting summary", 500
 
 
 if __name__ == "__main__":
