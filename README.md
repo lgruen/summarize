@@ -1,22 +1,58 @@
 # Self-hosted serverless LLM-based summarization service
 
-A personal web service that creates AI-generated summaries of online articles using Claude 3 and Jina AI.
+A personal web service that creates AI-generated summaries of online articles using Claude 3 and client-side HTML-to-Markdown conversion.
 
 ## Usage
 
-1. Prepend any HTTPS URL with `https://summarize.gruenschloss.org/`:
-   ```
-   https://summarize.gruenschloss.org/https://example.com/article
-   ```
+Two ways to use the service:
+
+1. Using the bookmarklet (recommended):
+
+   - Create a new bookmark with this code as the URL:
+
+     ```javascript
+     javascript: (function () {
+       var s = document.createElement("script");
+       s.src = "https://unpkg.com/turndown/dist/turndown.js";
+       s.onload = function () {
+         var t = new TurndownService(),
+           m = t.turndown(document.body),
+           f = document.createElement("form");
+         f.method = "POST";
+         f.enctype = "application/x-www-form-urlencoded";
+         f.action = "YOUR_BACKEND_URL/summarize";
+
+         [
+           ["title", document.title],
+           ["content", m],
+           ["url", window.location.href],
+         ].forEach(([k, v]) => {
+           var i = document.createElement("input");
+           i.type = "hidden";
+           i.name = k;
+           i.value = v;
+           f.appendChild(i);
+         });
+
+         document.body.appendChild(f);
+         f.submit();
+       };
+       document.body.appendChild(s);
+     })();
+     ```
+
+   - Replace `YOUR_BACKEND_URL` with your actual service URL
+   - Click the bookmark on any page you want to summarize
 
 2. View recently summarized articles:
-   ```
-   https://summarize.gruenschloss.org/recent
+
+   ```txt
+   https://YOUR_BACKEND_URL/recent
    ```
 
 ## How It Works
 
-1. Content extraction via Jina AI 
+1. Content extraction via client-side Turndown.js (HTML to Markdown)
 2. Summarization using Claude 3
 3. Results cached in Google Cloud Storage
 4. Protected by oauth2-proxy (Google auth)
@@ -29,3 +65,11 @@ A personal web service that creates AI-generated summaries of online articles us
 - Caches use gzip compression
 - Summaries in Markdown format
 - `service.yaml` contains full deployment config -- update secrets accordingly
+
+## Key Features
+
+- Direct HTML-to-Markdown conversion in the browser
+- No complex content extraction dependencies
+- Clean, structured summaries from Claude 3
+- Persistent caching of results
+- Simple deployment and maintenance
