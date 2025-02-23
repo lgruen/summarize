@@ -204,6 +204,9 @@ MARKDOWN_EXTRAS = ["break-on-newline", "cuddled-lists", "markdown-in-html", "tab
 app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
+# Allow large POST requests
+app.config["MAX_FORM_MEMORY_SIZE"] = 16 * 1024 * 1024  # 16 MB
+
 storage_client = storage.Client()
 config = Config(
     claude_api_key=os.environ["CLAUDE_API_KEY"],
