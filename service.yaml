@@ -25,6 +25,7 @@ spec:
             - --provider=google
             - --skip-provider-button
             - --authenticated-emails-file=/auth/authenticated_emails.txt
+            - --cookie-samesite=none
             - --cookie-secure=true
             - --cookie-domain=summarize.gruenschloss.org
             - --upstream=http://localhost:8888
