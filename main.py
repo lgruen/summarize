@@ -388,7 +388,7 @@ def summarize_with_claude(content: str) -> str:
     client = Anthropic(api_key=config.claude_api_key)
 
     message = client.messages.create(
-        model="claude-3-5-sonnet-latest",
+        model="claude-3-7-sonnet-latest",
         max_tokens=8192,
         temperature=0.3,
         messages=[{"role": "user", "content": SUMMARY_PROMPT.format(content=content)}],
