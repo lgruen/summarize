@@ -23,7 +23,6 @@ from flask import (
     redirect,
 )
 from anthropic import Anthropic
-from anthropic.types import TextBlock
 from urllib.parse import urlparse
 from werkzeug.middleware.proxy_fix import ProxyFix
 from typing_extensions import TypeGuard
@@ -387,21 +386,22 @@ def summarize_with_claude(content: str) -> str:
     """Summarize content using Claude"""
     client = Anthropic(api_key=config.claude_api_key)
 
-    message = client.messages.create(
+    response = client.messages.create(
         model="claude-3-7-sonnet-latest",
-        max_tokens=8192,
-        temperature=0.3,
+        max_tokens=20000,
+        thinking={"type": "enabled", "budget_tokens": 10000},
         messages=[{"role": "user", "content": SUMMARY_PROMPT.format(content=content)}],
         timeout=config.claude_timeout,
     )
 
-    assert isinstance(message.content[0], TextBlock)
-    response = message.content[0].text
+    text_blocks = [block for block in response.content if block.type == "text"]
+    assert text_blocks
+    content = text_blocks[0].text
 
-    match = re.search(r"<summary>(.*?)</summary>", response, re.DOTALL)
+    match = re.search(r"<summary>(.*?)</summary>", content, re.DOTALL)
     if match:
         return match.group(1).strip()
-    return f"[Failed to extract summary tags]\n\n{response}"
+    return f"[Failed to extract summary tags]\n\n{content}"
 
 
 @app.route("/summarize", methods=["POST"])
