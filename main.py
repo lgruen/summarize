@@ -405,7 +405,7 @@ def summarize_with_claude(content: str) -> str:
 
 
 @app.route("/summarize", methods=["POST"])
-def receive_content():
+def create_summary():
     if not all(k in request.form for k in ["content", "url", "title"]):
         return "Missing required fields", 400
 
@@ -418,6 +418,13 @@ def receive_content():
         return "Invalid URL", 400
 
     try:
+        # Check if we already have a cached result
+        cached = get_cached_result(target_url)
+        if cached:
+            logger.info(f"Using cached result for {target_url}")
+            return redirect(f"/{encode_url_safe(target_url)}")
+            
+        # Not in cache, generate a new summary
         markdown_summary = summarize_with_claude(content)
         store_result(target_url, title, markdown_summary)
         return redirect(f"/{encode_url_safe(target_url)}")
@@ -428,7 +435,7 @@ def receive_content():
 
 @app.route("/<path:encoded_url>")
 @gzip_response
-def summarize(encoded_url: str) -> HTMLResponse:
+def view_summary(encoded_url: str) -> HTMLResponse:
     request_id = request.headers.get("X-Request-ID", "unknown")
     logger.info(f"Starting request {request_id} for encoded URL: {encoded_url}")
     start_time = time.time()
