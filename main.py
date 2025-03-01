@@ -167,22 +167,19 @@ LIST_TEMPLATE = """
 SUMMARY_PROMPT = """
 <content>{content}</content>
 
-Please transform this content into an in-depth technical narrative that combines technical depth with the personality and insights from the original conversation. Write for a knowledgeable audience that wants both rich technical detail and the human story behind the innovations.
+Transform this content into an in-depth technical narrative that combines technical depth with the personality and insights from the original conversation. Write for a knowledgeable audience that wants both rich technical detail and the human story behind the innovations.
 
 When describing technical innovations, combine thorough technical explanation with the speaker's perspective on why these choices matter. Maintain the original voice and personality while diving deep into the most compelling technical aspects. Begin directly with the content.
 
-Please think through this summary task step by step in your internal reasoning, then provide the final summary in a structured format.
+IMPORTANT: Provide ONLY the summary with no preamble or other text. Do not include any explanation of your process or any tags around your response.
 
-Your response must be wrapped in summary tags like this:
-<summary>
-[Your technical summary here with these characteristics:]
-Deliver:
-- Detailed explanations of novel technical approaches and why they matter
-- The speaker's insights and reasoning behind technical choices
-- Specific examples and implementation details
-- Real-world context and practical implications
+Style guidelines (apply when relevant to the content):
+- Highlight detailed explanations of novel technical approaches and why they matter
+- Capture the speaker's insights and reasoning behind technical choices
+- Include specific examples and implementation details from the original content
+- Incorporate real-world context and practical implications when mentioned
 
-Structure requirements:
+Structure guidelines:
 - At most half an hour of reading time
 - Clear Markdown formatting
 - Flowing narrative with minimal bullet points
@@ -195,7 +192,6 @@ Writing style:
 - Let the speaker's excitement and expertise shine through
 - Balance technical depth with clear, engaging exposition
 - Connected ideas rather than isolated points
-</summary>
 """
 
 MARKDOWN_EXTRAS = ["break-on-newline", "cuddled-lists", "markdown-in-html", "tables"]
@@ -396,12 +392,7 @@ def summarize_with_claude(content: str) -> str:
 
     text_blocks = [block for block in response.content if block.type == "text"]
     assert text_blocks
-    content = text_blocks[0].text
-
-    match = re.search(r"<summary>(.*?)</summary>", content, re.DOTALL)
-    if match:
-        return match.group(1).strip()
-    return f"[Failed to extract summary tags]\n\n{content}"
+    return text_blocks[0].text
 
 
 @app.route("/summarize", methods=["POST"])
