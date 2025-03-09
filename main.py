@@ -3,7 +3,6 @@ from __future__ import annotations
 import os
 import json
 import gzip
-import re
 import base64
 import time
 import logging
@@ -22,7 +21,7 @@ from flask import (
     send_from_directory,
     redirect,
 )
-from anthropic import Anthropic
+from anthropic import Anthropic, RateLimitError
 from urllib.parse import urlparse
 from werkzeug.middleware.proxy_fix import ProxyFix
 from typing_extensions import TypeGuard
@@ -82,7 +81,7 @@ HTML_TEMPLATE = """
                         </svg>
                     </div>
                     <div class="ml-3">
-                        <p class="text-sm text-red-700">{{ error }}</p>
+                        <p class="text-sm text-red-700">{{ error|safe }}</p>
                     </div>
                 </div>
             </div>
@@ -414,14 +413,53 @@ def create_summary():
         if cached:
             logger.info(f"Using cached result for {target_url}")
             return redirect(f"/{encode_url_safe(target_url)}")
-            
+
         # Not in cache, generate a new summary
         markdown_summary = summarize_with_claude(content)
         store_result(target_url, title, markdown_summary)
         return redirect(f"/{encode_url_safe(target_url)}")
+
+    except RateLimitError as e:
+        # Access the raw headers from the underlying response
+        headers = {}
+        if (
+            hasattr(e, "response")
+            and e.response is not None
+            and hasattr(e.response, "headers")
+        ):
+            headers = e.response.headers
+        retry_after = headers.get("retry-after", "unknown")
+        # Gather all quota-related headers (ignoring case)
+        ratelimit_headers = {
+            k: v
+            for k, v in headers.items()
+            if k.lower().startswith("anthropic-ratelimit")
+        }
+        # Format the rate limit headers as a nicely formatted list with line breaks
+        details = "<br>".join(
+            f"{key}: {value}" for key, value in ratelimit_headers.items()
+        )
+        
+        # Build error message with proper HTML formatting for better readability
+        error_message = (
+            f"<strong>Rate limit error encountered:</strong><br>"
+            f"{e}<br><br>"
+            f"<strong>Please retry after {retry_after} seconds.</strong><br><br>"
+            f"<strong>Rate limit details:</strong><br>"
+            f"{details}"
+        )
+        logger.error(
+            f"Rate limit error for {target_url}: {error_message}", exc_info=True
+        )
+        return render_template_string(
+            HTML_TEMPLATE, error=error_message, title="Rate Limit Error"
+        ), 429
+
     except Exception as e:
         logger.error(f"Error processing content: {e}", exc_info=True)
-        return str(e), 500
+        return render_template_string(
+            HTML_TEMPLATE, error=f"Error processing request: {str(e)}", title="Error"
+        ), 500
 
 
 @app.route("/<path:encoded_url>")
