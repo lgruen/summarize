@@ -1,0 +1,51 @@
+name: Build and Deploy to Cloud Run
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Google Auth
+      id: auth
+      uses: google-github-actions/auth@v2
+      with:
+        workload_identity_provider: ${{ secrets.WORKLOAD_IDENTITY_PROVIDER }}
+        service_account: ${{ secrets.SERVICE_ACCOUNT }}
+        project_id: leo-summarize
+        
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v2
+      
+    - name: Authorize Docker push
+      run: gcloud auth configure-docker asia-southeast1-docker.pkg.dev
+      
+    - name: Build and push container
+      run: |
+        gcloud builds submit --project leo-summarize --tag asia-southeast1-docker.pkg.dev/leo-summarize/images/summarize:latest
+        
+    - name: Apply secrets to template
+      run: |
+        envsubst < service.template.yaml > service.yaml
+      env:
+        OAUTH2_PROXY_CLIENT_ID: ${{ secrets.OAUTH2_PROXY_CLIENT_ID }}
+        OAUTH2_PROXY_CLIENT_SECRET: ${{ secrets.OAUTH2_PROXY_CLIENT_SECRET }}
+        OAUTH2_PROXY_COOKIE_SECRET: ${{ secrets.OAUTH2_PROXY_COOKIE_SECRET }}
+        JINA_API_KEY: ${{ secrets.JINA_API_KEY }}
+        CLAUDE_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
+        
+    - name: Deploy to Cloud Run
+      run: |
+        gcloud --quiet run services delete --project leo-summarize --region asia-southeast1 summarize || true
+        gcloud run services replace service.yaml --project leo-summarize --region asia-southeast1
+        gcloud --project=leo-summarize run services add-iam-policy-binding --region=asia-southeast1 summarize --member="allUsers" --role="roles/run.invoker"

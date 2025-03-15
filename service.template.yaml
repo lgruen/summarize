@@ -1,0 +1,71 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: summarize
+  annotations:
+    run.googleapis.com/launch-stage: BETA
+    run.googleapis.com/ingress: "all"
+    run.googleapis.com/service-account: summarize@leo-summarize.iam.gserviceaccount.com
+spec:
+  template:
+    metadata:
+      annotations:
+        run.googleapis.com/container-dependencies: '{"oauth2-proxy": ["app"]}'
+        run.googleapis.com/execution-environment: gen2
+        autoscaling.knative.dev/maxScale: "1"
+    spec:
+      containerConcurrency: 5
+      containers:
+        - name: oauth2-proxy
+          image: asia-southeast1-docker.pkg.dev/leo-summarize/images/oauth2-proxy
+          ports:
+            - containerPort: 8080
+          args:
+            - --http-address=0.0.0.0:8080
+            - --provider=google
+            - --skip-provider-button
+            - --authenticated-emails-file=/auth/authenticated_emails.txt
+            - --cookie-samesite=none
+            - --cookie-secure=true
+            - --cookie-domain=summarize.gruenschloss.org
+            - --upstream=http://localhost:8888
+            - --upstream-timeout=300s
+            - --redirect-url=https://summarize.gruenschloss.org/oauth2/callback
+          env:
+            - name: OAUTH2_PROXY_CLIENT_ID
+              value: "${OAUTH2_PROXY_CLIENT_ID}"
+            - name: OAUTH2_PROXY_CLIENT_SECRET
+              value: "${OAUTH2_PROXY_CLIENT_SECRET}"
+            - name: OAUTH2_PROXY_COOKIE_SECRET
+              value: "${OAUTH2_PROXY_COOKIE_SECRET}"
+          volumeMounts:
+            - name: auth-emails
+              mountPath: /auth
+        - name: app
+          image: asia-southeast1-docker.pkg.dev/leo-summarize/images/summarize:latest
+          env:
+            - name: PORT
+              value: "8888"
+            - name: JINA_API_KEY
+              value: "${JINA_API_KEY}"
+            - name: CLAUDE_API_KEY
+              value: "${CLAUDE_API_KEY}"
+            - name: BUCKET_NAME
+              value: "leo-summarize"
+          resources:
+            limits:
+              cpu: 1000m
+              memory: 512Mi
+          startupProbe:
+            timeoutSeconds: 30
+            periodSeconds: 60
+            failureThreshold: 1
+            tcpSocket:
+              port: 8888
+      volumes:
+      - name: auth-emails
+        csi:
+          driver: gcsfuse.run.googleapis.com
+          readOnly: true
+          volumeAttributes:
+            bucketName: leo-summarize
