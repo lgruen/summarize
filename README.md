@@ -64,7 +64,21 @@ Two ways to use the service:
 - Authenticated users defined in `authenticated_emails.txt` in GCS bucket
 - Caches use gzip compression
 - Summaries in Markdown format
-- `service.yaml` contains full deployment config -- update secrets accordingly
+- Deployed via GitHub Actions CI/CD pipeline
+
+## Deployment
+
+This application uses GitHub Actions for continuous deployment:
+
+1. Secrets are stored securely in GitHub repository secrets
+2. When code is pushed to the main branch, a workflow automatically:
+   - Builds the Docker container
+   - Deploys to Google Cloud Run
+   - Configures service settings
+
+To set up Workload Identity Federation for GitHub Actions:
+- Follow guidance at: https://github.com/google-github-actions/auth#setting-up-workload-identity-federation
+- Add the `WORKLOAD_IDENTITY_PROVIDER` and `SERVICE_ACCOUNT` secrets to GitHub
 
 ## Key Features
 
