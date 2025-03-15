@@ -124,6 +124,29 @@ LIST_TEMPLATE = """
                 console.error('Error:', error);
             }
         }
+
+        // Convert UTC timestamps to local timezone
+        document.addEventListener('DOMContentLoaded', function() {
+            const timeElements = document.querySelectorAll('[data-utc-time]');
+            timeElements.forEach(element => {
+                const utcTime = element.getAttribute('data-utc-time');
+                // Parse the UTC timestamp (format: YYYY-MM-DD HH:MM UTC)
+                const utcDate = new Date(utcTime.replace(' UTC', 'Z'));
+                
+                if (!isNaN(utcDate)) {
+                    // Format the date in local timezone with 24-hour format
+                    const localTime = utcDate.toLocaleString(undefined, {
+                        year: 'numeric',
+                        month: 'numeric',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: false
+                    });
+                    element.textContent = localTime;
+                }
+            });
+        });
     </script>
 </head>
 <body class="bg-gray-50">
@@ -142,7 +165,7 @@ LIST_TEMPLATE = """
                     <tbody class="bg-white divide-y divide-gray-200">
                         {% for summary in summaries %}
                         <tr class="hover:bg-gray-50 transition-colors" id="row-{{ loop.index }}">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ summary.timestamp }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" data-utc-time="{{ summary.timestamp }}">{{ summary.timestamp }}</td>
                             <td class="px-6 py-4 text-sm">
                                 <a href="/{{ summary.encoded_url }}" class="text-indigo-600 hover:text-indigo-900">{{ summary.title }}</a>
                             </td>
