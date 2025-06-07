@@ -405,7 +405,7 @@ def summarize_with_claude(content: str) -> str:
     client = Anthropic(api_key=config.claude_api_key)
 
     response = client.messages.create(
-        model="claude-3-7-sonnet-latest",
+        model="claude-sonnet-4-0",
         max_tokens=20000,
         thinking={"type": "enabled", "budget_tokens": 10000},
         messages=[{"role": "user", "content": SUMMARY_PROMPT.format(content=content)}],
